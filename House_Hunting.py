@@ -119,7 +119,7 @@ def search_results(Min_Bed,Max_Price,Min_Price,Props_Per_Page,Radius,Cash,Help,T
     for i in property_urls:
         nearby_stations = get_stations(get_property_page(i))
         prop_descriptions = get_description(get_property_page(i))
-        #Help to buy feature turned off at the moment
+
         if cash_buyer(prop_descriptions) == Cash and help_to_buy(prop_descriptions) == Help and good_transport(nearby_stations) == Tran:
             good_properties.append("http://www.rightmove.co.uk"+i)
     print "Total Properties Found:"
@@ -134,10 +134,12 @@ total = total_properties_found("0","320000","160000","3.0")
 df1 = pandas.DataFrame(search_results('0','320000','160000',total,'3.0',"no","yes","no"))
 df2 = pandas.DataFrame(search_results('0','220000','160000',total,'3.0',"no","no","yes"))
 
+## Save properties to csv
+
 df1.to_csv("Properties_H2B.csv")
 df2.to_csv("Properties_Non-H2B.csv")
 
-
+## Email properties to whomever
 
 fromaddr = "from address"
 toaddr = "to address"
