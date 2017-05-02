@@ -34,32 +34,10 @@ tube_map = get_source("http://www.rightmove.co.uk/tube-map.html")
 tube_codes = []
 
 for link in tube_map.find_all('a'):
-    a = link.get('href'):
-    if "/property-for-sale/find.html/svr/1702;" in a:
-        tube_codes.append(a.split("=")[1])
+    a = link.get('href')
+    if "?locationIdentifier=STATION" in a:
+        tube_codes.append(str(a.split("=")[2]))
 
-
-
-
-## To only get homes near the underground/overgound/DLR:
-## (Can't rely on the rail in London)
-
-# def get_stations(soup):
-#     stations = []
-#     for i in soup.find_all('div', { 'class' : 'clearfix nearest-stations'}):
-#         stations.append(str(i))
-#     return stations
-#
-#
-# def good_transport(stations):
-#     trains = []
-#     for i in stations:
-#         if "light" in i or "london-overground" in i or "london-underground" in i:
-#             trains.append(i)
-#     if len(trains) > 0:
-#         return "yes"
-#     else:
-#         return "no"
 
 ## Rightmove doesn't always filter for Cash-buyers
 ## even when you tell it to.
@@ -98,8 +76,8 @@ def help_to_buy(description):
 
 ## To get the total number of properties found based on your criteria:
 
-def total_pages_found(Station,Min_Bed,Max_Price,Min_Price,Radius):
-    url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&numberOfPropertiesPerPage=24&radius="+Radius+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
+def total_pages_found(Station,Min_Bed,Max_Price,Min_Price):
+    url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
     soup = get_source(url)
     #Get the total properties for the given criteria. This can be used to decide how many properties you want to look at.
     totals = []
@@ -110,6 +88,7 @@ def total_pages_found(Station,Min_Bed,Max_Price,Min_Price,Radius):
     for i in totals:
         for t in re.findall(regex, i):
             total.append(t)
+
     total_properties = int( ''.join(total) )
 
     if total_properties > 1025:
@@ -118,45 +97,54 @@ def total_pages_found(Station,Min_Bed,Max_Price,Min_Price,Radius):
         return total_properties / 25
 
 
+
 ## Get a list of the URLs all the properties in your criteria:
 
-def search_results(Min_Bed,Max_Price,Min_Price,Props_Per_Page,Radius,Cash,Help,Tran):
+def search_results(Min_Bed,Max_Price,Min_Price,Station,Cash,Help):
     #Must put quotation marks around variables.
-    #Only radius options are [0.0,0.25,0.5,1.0,3.0,5.0,10.0,15.0,20.0,30.0,40.0]
-    url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier=REGION%5E87490&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&numberOfPropertiesPerPage="+Props_Per_Page+"&radius="+Radius+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
-    soup = get_source(url)
-    #Get Property urls
-    urls = []
-    for link in soup.find_all('a'):
-        urls.append(link.get('href'))
-    properties = []
-    for i in urls:
-        if "property-for-sale/property" in str(i):
-            properties.append(i)
-    refined_prop = set(properties)
-    property_urls = []
-    for i in refined_prop:
-        if "property-0.html" not in i:
-            property_urls.append(str(i))
-    #Search Proprties
     good_properties = []
-    for i in property_urls:
-        nearby_stations = get_stations(get_property_page(i))
-        prop_descriptions = get_description(get_property_page(i))
+    total_pages = total_pages_found(Station,Min_Bed,Max_Price,Min_Price)
 
-        if cash_buyer(prop_descriptions) == Cash and help_to_buy(prop_descriptions) == Help and good_transport(nearby_stations) == Tran:
-            good_properties.append("http://www.rightmove.co.uk"+i)
-    print "Total Properties Found:"
-    print len(good_properties)
-    print "\nProperties in descending price order:\n"
+
+    pages = []
+    for i in range(0,total_pages + 1):
+        pages.append(i*24)
+
+    #Get Property urls
+    for n in pages:
+        url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&sortType=2&index="+str(n)+"&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
+
+        soup = get_source(url)
+
+        urls = []
+        for link in soup.find_all('a'):
+            urls.append(link.get('href'))
+        properties = []
+        for i in urls:
+            if "property-for-sale/property" in str(i):
+                properties.append(i)
+        refined_prop = set(properties)
+        property_urls = []
+        for i in refined_prop:
+            if "property-0.html" not in i:
+                property_urls.append(str(i))
+    #Search Proprties
+        for i in property_urls:
+
+            prop_descriptions = get_description(get_property_page(i))
+
+            if cash_buyer(prop_descriptions) == Cash and help_to_buy(prop_descriptions) == Help:
+                good_properties.append("http://www.rightmove.co.uk"+i)
+
 
     return good_properties
 
-total = total_properties_found("0","320000","160000","3.0")
 
 
-df1 = pandas.DataFrame(search_results('0','320000','160000',total,'3.0',"no","yes","no"))
-df2 = pandas.DataFrame(search_results('0','220000','160000',total,'3.0',"no","no","yes"))
+df1 = pandas.DataFrame(search_results('0','320000','160000',i,"no","yes") for i in tube_codes)
+df2 = pandas.DataFrame(search_results('0','220000','160000',i,"no","no") for i in tube_codes)
+
+
 
 ## Save properties to csv
 
@@ -165,8 +153,8 @@ df2.to_csv("Properties_Non-H2B.csv")
 
 ## Email properties to whomever
 
-fromaddr = "from address"
-toaddr = "to address"
+fromaddr = "arianna.salili@gmail.com"
+toaddr = "arianna_salili@hotmail.com"
 
 msg = MIMEMultipart()
 
@@ -180,7 +168,7 @@ body = "Attached is a list of properties in London with Help-to-Buy."
 msg.attach(MIMEText(body, 'plain'))
 
 filename = "Properties_H2B.csv"
-attachment = open("C:/Users/arian/Downloads/Properties_H2B.csv", "rb")
+attachment = open("C:/Users/arian/Documents/Programming/Python/House-Hunting/Properties_H2B.csv", "rb")
 
 part = MIMEBase('application', 'octet-stream')
 part.set_payload((attachment).read())
@@ -190,7 +178,7 @@ part.add_header('Content-Disposition', "attachment; filename= %s" % filename)
 msg.attach(part)
 
 filename = "Properties_Non-H2B.csv"
-attachment = open("C:/Users/arian/Downloads/Properties_Non-H2B.csv", "rb")
+attachment = open("C:/Users/arian/Documents/Programming/Python/House-Hunting/Properties_Non-H2B.csv", "rb")
 
 part = MIMEBase('application', 'octet-stream')
 part.set_payload((attachment).read())
@@ -201,7 +189,7 @@ msg.attach(part)
 
 server = smtplib.SMTP('smtp.gmail.com', 587)
 server.starttls()
-server.login(fromaddr, "password")
+server.login(fromaddr, "Bertrand.Postulate2")
 text = msg.as_string()
 server.sendmail(fromaddr, toaddr, text)
 server.quit()
