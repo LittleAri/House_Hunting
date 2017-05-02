@@ -27,25 +27,39 @@ def get_property_page(prop):
     soup = BeautifulSoup(source_text, 'html.parser')
     return soup
 
+## Get URLs for homes near all underground stations.
+
+tube_map = get_source("http://www.rightmove.co.uk/tube-map.html")
+
+tube_codes = []
+
+for link in tube_map.find_all('a'):
+    a = link.get('href'):
+    if "/property-for-sale/find.html/svr/1702;" in a:
+        tube_codes.append(a.split("=")[1])
+
+
+
+
 ## To only get homes near the underground/overgound/DLR:
 ## (Can't rely on the rail in London)
 
-def get_stations(soup):
-    stations = []
-    for i in soup.find_all('div', { 'class' : 'clearfix nearest-stations'}):
-        stations.append(str(i))
-    return stations
-
-
-def good_transport(stations):
-    trains = []
-    for i in stations:
-        if "light" in i or "london-overground" in i or "london-underground" in i:
-            trains.append(i)
-    if len(trains) > 0:
-        return "yes"
-    else:
-        return "no"
+# def get_stations(soup):
+#     stations = []
+#     for i in soup.find_all('div', { 'class' : 'clearfix nearest-stations'}):
+#         stations.append(str(i))
+#     return stations
+#
+#
+# def good_transport(stations):
+#     trains = []
+#     for i in stations:
+#         if "light" in i or "london-overground" in i or "london-underground" in i:
+#             trains.append(i)
+#     if len(trains) > 0:
+#         return "yes"
+#     else:
+#         return "no"
 
 ## Rightmove doesn't always filter for Cash-buyers
 ## even when you tell it to.
@@ -77,10 +91,15 @@ def help_to_buy(description):
     else:
         return "no"
 
+## Rightmove only ever shows the top 42 pages. (On my laptop at least)
+## This means that it will show the top 42 x 25 = 1050 properties.
+
+## Before going through each page separately, we will need to know how many pages there are for each search.
+
 ## To get the total number of properties found based on your criteria:
 
-def total_properties_found(Min_Bed,Max_Price,Min_Price,Radius):
-    url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier=REGION%5E87490&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&numberOfPropertiesPerPage=24&radius="+Radius+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
+def total_pages_found(Station,Min_Bed,Max_Price,Min_Price,Radius):
+    url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&numberOfPropertiesPerPage=24&radius="+Radius+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
     soup = get_source(url)
     #Get the total properties for the given criteria. This can be used to decide how many properties you want to look at.
     totals = []
@@ -92,7 +111,12 @@ def total_properties_found(Min_Bed,Max_Price,Min_Price,Radius):
         for t in re.findall(regex, i):
             total.append(t)
     total_properties = int( ''.join(total) )
-    return str(total_properties)
+
+    if total_properties > 1025:
+        return 42
+    else:
+        return total_properties / 25
+
 
 ## Get a list of the URLs all the properties in your criteria:
 
