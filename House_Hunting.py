@@ -1,3 +1,10 @@
+Min_Bed = "1"
+Min_Price = "150000"
+Max_Price = "300000"
+Cash = "no" #put yes if you want cash-only homes
+lower_price = "220000"
+
+
 # To get the information we need, import the following:
 import requests
 from bs4 import BeautifulSoup
@@ -38,7 +45,7 @@ for link in tube_map.find_all('a'):
     if "?locationIdentifier=STATION" in a:
         tube_codes.append(str(a.split("=")[2]))
 
-
+#print tube_codes
 ## Rightmove doesn't always filter for Cash-buyers
 ## even when you tell it to.
 ## Nor does it have the option to filter for Help to Buy.
@@ -49,25 +56,43 @@ def get_description(soup):
         text.append(str(i).upper())
     return text
 
+# def cash_buyer(description):
+#     cash = []
+#     for i in description:
+#         if re.search(r"[Cc][Aa][Ss][Hh]", i):
+#             cash.append(i)
+#     if len(cash) > 0:
+#         return "yes"
+#     else:
+#         return "no"
+
 def cash_buyer(description):
-    cash = []
-    for i in description:
-        if "CASH BUYER ONLY" in i or "CASH BUYERS ONLY" in i or "CASH ONLY" in i:
-            cash.append(i)
-    if len(cash) > 0:
+    if re.search(r"cash(?i)", str(description)):
         return "yes"
     else:
         return "no"
 
 def help_to_buy(description):
-    help_ = []
-    for i in description:
-        if "HELP TO BUY" in i or "HELPTOBUY" in i:
-            help_.append(i)
-    if len(help_) > 0:
+    if re.search(r"help(| )to(| )buy(?i)",str(description)):
         return "yes"
     else:
         return "no"
+
+def get_price(description):
+    for i in description.find_all('div', {'class': 'row one-col property-header'}):
+        price = str(i.find('strong'))
+        u = re.findall(r"\d+",price)
+    return int( ''.join(u) )
+
+# def help_to_buy(description):
+#     help_ = []
+#     for i in description:
+#         if re.search(r"[Hh][Ee][Ll][Pp] [Tt][Oo] [Bb][Uu][Yy]",i)
+#             help_.append(i)
+#     if len(help_) > 0:
+#         return "yes"
+#     else:
+#         return "no"
 
 ## Rightmove only ever shows the top 42 pages. (On my laptop at least)
 ## This means that it will show the top 42 x 25 = 1050 properties.
@@ -77,6 +102,7 @@ def help_to_buy(description):
 ## To get the total number of properties found based on your criteria:
 
 def total_pages_found(Station,Min_Bed,Max_Price,Min_Price):
+    #print  Station
     url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
     soup = get_source(url)
     #Get the total properties for the given criteria. This can be used to decide how many properties you want to look at.
@@ -88,70 +114,85 @@ def total_pages_found(Station,Min_Bed,Max_Price,Min_Price):
     for i in totals:
         for t in re.findall(regex, i):
             total.append(t)
-
     total_properties = int( ''.join(total) )
 
     if total_properties > 1025:
         return 42
     else:
-        return total_properties / 25
+        return int(total_properties / 25)
 
 
 
 ## Get a list of the URLs all the properties in your criteria:
 
-def search_results(Min_Bed,Max_Price,Min_Price,Station,Cash,Help):
-    #Must put quotation marks around variables.
-    good_properties = []
+
+good_properties =[]
+
+property_urls = []
+
+print "Getting urls of properties near stations\n"
+
+tube_codes2 = list(set(tube_codes))
+
+for Station in tube_codes2:
+
     total_pages = total_pages_found(Station,Min_Bed,Max_Price,Min_Price)
+    if total_pages > 0:
+        pages = []
+        for i in range(0,total_pages + 1):
+            pages.append(i*24)
+        #t = 0
+        for n in pages:
+            url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&sortType=2&index="+str(n)+"&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
+            #t+=1
 
+            soup = get_source(url)
+            #print t
+            urls = []
+            for link in soup.find_all('a'):
+                urls.append(link.get('href'))
+            properties = []
+            for i in urls:
+                if "property-for-sale/property" in str(i):
+                    properties.append(i)
+            refined_prop = set(properties)
 
-    pages = []
-    for i in range(0,total_pages + 1):
-        pages.append(i*24)
+            for i in refined_prop:
+                if "property-0.html" not in i and i not in property_urls:
+                    property_urls.append(str(i))
 
-    #Get Property urls
-    for n in pages:
-        url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&sortType=2&index="+str(n)+"&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
+print "Searching each property that matches criteria.\n"
 
-        soup = get_source(url)
+H2B = []
+NH2B = []
 
-        urls = []
-        for link in soup.find_all('a'):
-            urls.append(link.get('href'))
-        properties = []
-        for i in urls:
-            if "property-for-sale/property" in str(i):
-                properties.append(i)
-        refined_prop = set(properties)
-        property_urls = []
-        for i in refined_prop:
-            if "property-0.html" not in i:
-                property_urls.append(str(i))
-    #Search Proprties
-        for i in property_urls:
+for i in property_urls:
+    prop_descriptions = get_description(get_property_page(i))
 
-            prop_descriptions = get_description(get_property_page(i))
+    if help_to_buy(prop_descriptions) == "yes":
+        H2B.append("http://www.rightmove.co.uk"+i)
 
-            if cash_buyer(prop_descriptions) == Cash and help_to_buy(prop_descriptions) == Help:
-                good_properties.append("http://www.rightmove.co.uk"+i)
-
-
-    return good_properties
-
-
-
-df1 = pandas.DataFrame(search_results('0','320000','160000',i,"no","yes") for i in tube_codes)
-df2 = pandas.DataFrame(search_results('0','220000','160000',i,"no","no") for i in tube_codes)
-
-
+    if cash_buyer(prop_descriptions) == Cash and get_price(prop_descriptions) < int(lower_price):
+        Help = help_to_buy(prop_descriptions)
+        NH2B.append("http://www.rightmove.co.uk"+i)
 
 ## Save properties to csv
+
+print "Saving properties to CSV\n"
+
+
+
+df1 = pandas.DataFrame(H2B)
+df2 = pandas.DataFrame(NH2B)
+
+
 
 df1.to_csv("Properties_H2B.csv")
 df2.to_csv("Properties_Non-H2B.csv")
 
 ## Email properties to whomever
+
+print "Sending email\n"
 
 fromaddr = "arianna.salili@gmail.com"
 toaddr = "arianna_salili@hotmail.com"
@@ -193,3 +234,5 @@ server.login(fromaddr, "Bertrand.Postulate2")
 text = msg.as_string()
 server.sendmail(fromaddr, toaddr, text)
 server.quit()
+
+print "Done!"
