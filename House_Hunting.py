@@ -1,8 +1,17 @@
+#Home Criteria:
+
 Min_Bed = "1"
 Min_Price = "150000"
-Max_Price = "300000"
+Max_Price = "350000"
 Cash = "no" #put yes if you want cash-only homes
-lower_price = "220000"
+lower_price = "210000" #This is the lower maximum for non Help to Buy homes.
+
+#Email details:
+
+fromaddr = "from@email"
+toaddr = "to@email"
+password = ""
+
 
 
 # To get the information we need, import the following:
@@ -56,16 +65,6 @@ def get_description(soup):
         text.append(str(i).upper())
     return text
 
-# def cash_buyer(description):
-#     cash = []
-#     for i in description:
-#         if re.search(r"[Cc][Aa][Ss][Hh]", i):
-#             cash.append(i)
-#     if len(cash) > 0:
-#         return "yes"
-#     else:
-#         return "no"
-
 def cash_buyer(description):
     if re.search(r"cash(?i)", str(description)):
         return "yes"
@@ -84,18 +83,9 @@ def get_price(description):
         u = re.findall(r"\d+",price)
     return int( ''.join(u) )
 
-# def help_to_buy(description):
-#     help_ = []
-#     for i in description:
-#         if re.search(r"[Hh][Ee][Ll][Pp] [Tt][Oo] [Bb][Uu][Yy]",i)
-#             help_.append(i)
-#     if len(help_) > 0:
-#         return "yes"
-#     else:
-#         return "no"
 
 ## Rightmove only ever shows the top 42 pages. (On my laptop at least)
-## This means that it will show the top 42 x 25 = 1050 properties.
+## This means that it will only show the top 42 x 25 = 1050 properties.
 
 ## Before going through each page separately, we will need to know how many pages there are for each search.
 
@@ -172,9 +162,10 @@ for i in property_urls:
     if help_to_buy(prop_descriptions) == "yes":
         H2B.append("http://www.rightmove.co.uk"+i)
 
-    if cash_buyer(prop_descriptions) == Cash and get_price(prop_descriptions) < int(lower_price):
-        Help = help_to_buy(prop_descriptions)
-        NH2B.append("http://www.rightmove.co.uk"+i)
+    else:
+        if cash_buyer(prop_descriptions) == Cash and get_price(prop_descriptions) < int(lower_price):
+            Help = help_to_buy(prop_descriptions)
+            NH2B.append("http://www.rightmove.co.uk"+i)
 
 ## Save properties to csv
 
@@ -209,6 +200,8 @@ body = "Attached is a list of properties in London with Help-to-Buy."
 msg.attach(MIMEText(body, 'plain'))
 
 filename = "Properties_H2B.csv"
+# Add path of file
+
 attachment = open("C:/Users/arian/Documents/Programming/Python/House-Hunting/Properties_H2B.csv", "rb")
 
 part = MIMEBase('application', 'octet-stream')
@@ -219,6 +212,7 @@ part.add_header('Content-Disposition', "attachment; filename= %s" % filename)
 msg.attach(part)
 
 filename = "Properties_Non-H2B.csv"
+# Add path of file
 attachment = open("C:/Users/arian/Documents/Programming/Python/House-Hunting/Properties_Non-H2B.csv", "rb")
 
 part = MIMEBase('application', 'octet-stream')
@@ -230,7 +224,7 @@ msg.attach(part)
 
 server = smtplib.SMTP('smtp.gmail.com', 587)
 server.starttls()
-server.login(fromaddr, "Bertrand.Postulate2")
+server.login(fromaddr, password)
 text = msg.as_string()
 server.sendmail(fromaddr, toaddr, text)
 server.quit()
