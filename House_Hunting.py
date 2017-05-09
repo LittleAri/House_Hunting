@@ -8,8 +8,8 @@ lower_price = "210000" #This is the lower maximum for non Help to Buy homes.
 
 #Email details:
 
-fromaddr = "from@email"
-toaddr = "to@email"
+fromaddr = "from@email.com"
+toaddr = "to@email.com"
 password = ""
 
 
@@ -77,11 +77,14 @@ def help_to_buy(description):
     else:
         return "no"
 
-def get_price(description):
-    for i in description.find_all('div', {'class': 'row one-col property-header'}):
+def get_price(soup):
+    for i in soup.find_all('div', {'class': 'row one-col property-header'}):
         price = str(i.find('strong'))
-        u = re.findall(r"\d+",price)
-    return int( ''.join(u) )
+        if "POA" not in str(price):
+            u = re.findall(r"\d+",price)
+            return int( ''.join(u) )
+        else:
+            return 0
 
 
 ## Rightmove only ever shows the top 42 pages. (On my laptop at least)
@@ -163,8 +166,8 @@ for i in property_urls:
         H2B.append("http://www.rightmove.co.uk"+i)
 
     else:
-        if cash_buyer(prop_descriptions) == Cash and get_price(prop_descriptions) < int(lower_price):
-            Help = help_to_buy(prop_descriptions)
+        price = get_price(get_property_page(i))
+        if cash_buyer(prop_descriptions) == Cash and  0 < price < int(lower_price) :
             NH2B.append("http://www.rightmove.co.uk"+i)
 
 ## Save properties to csv
