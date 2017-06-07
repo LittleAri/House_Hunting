@@ -46,15 +46,19 @@ def get_property_page(prop):
 ## Get URLs for homes near all underground stations.
 
 tube_map = get_source("http://www.rightmove.co.uk/tube-map.html")
-
-tube_codes = []
-
+  
+        
+station_codes_names = []
 for link in tube_map.find_all('a'):
-    a = link.get('href')
-    if "?locationIdentifier=STATION" in a:
-        tube_codes.append(str(a.split("=")[2]))
 
-#print tube_codes
+    a = link.get('href')
+    b = link.get('title')
+    if "STATION^" in str(a) and "Property for sale near" in str(b):
+        u = str(a).split("=")[2]
+        
+        station_codes_names.append([u,str(b).replace('Property for sale near ','')])
+
+
 ## Rightmove doesn't always filter for Cash-buyers
 ## even when you tell it to.
 ## Nor does it have the option to filter for Help to Buy.
@@ -95,7 +99,7 @@ def get_price(soup):
 ## To get the total number of properties found based on your criteria:
 
 def total_pages_found(Station,Min_Bed,Max_Price,Min_Price):
-    #print  Station
+
     url = "http://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier="+Station+"&minBedrooms="+Min_Bed+"&maxPrice="+Max_Price+"&minPrice="+Min_Price+"&sortType=2&index=0&includeSSTC=false&viewType=LIST&dontShow=sharedOwnership%2Cretirement&areaSizeUnit=sqft&currencyCode=GBP"
     soup = get_source(url)
     #Get the total properties for the given criteria. This can be used to decide how many properties you want to look at.
@@ -125,10 +129,9 @@ property_urls = []
 
 print "Getting urls of properties near stations\n"
 
-tube_codes2 = list(set(tube_codes))
 
-for Station in tube_codes2:
-
+for code in station_codes_names:
+    Station = code[0]
     total_pages = total_pages_found(Station,Min_Bed,Max_Price,Min_Price)
     if total_pages > 0:
         pages = []
@@ -151,24 +154,25 @@ for Station in tube_codes2:
             refined_prop = set(properties)
 
             for i in refined_prop:
-                if "property-0.html" not in i and i not in property_urls:
-                    property_urls.append(str(i))
+                if "property-0.html" not in i and i not in zip(*property_urls)[0]: #Need to edit this to make it more efficient.
+                    property_urls.append([str(i),code[1]])
 
 print "Searching each property that matches criteria.\n"
 
 H2B = []
 NH2B = []
 
-for i in property_urls:
+for x in property_urls:
+    i = x[0]
     prop_descriptions = get_description(get_property_page(i))
 
     if help_to_buy(prop_descriptions) == "yes":
-        H2B.append("http://www.rightmove.co.uk"+i)
+        H2B.append(["http://www.rightmove.co.uk"+i,x[1]])
 
     else:
         price = get_price(get_property_page(i))
         if cash_buyer(prop_descriptions) == Cash and  0 < price < int(lower_price) :
-            NH2B.append("http://www.rightmove.co.uk"+i)
+            NH2B.append(["http://www.rightmove.co.uk"+i,x[1]])
 
 ## Save properties to csv
 
