@@ -192,8 +192,8 @@ df2.to_csv("Properties_Non-H2B.csv")
 
 print "Sending email\n"
 
-fromaddr = "arianna.salili@gmail.com"
-toaddr = "arianna_salili@hotmail.com"
+fromaddr = "___@gmail.com"
+toaddr = "___@hotmail.com"
 
 msg = MIMEMultipart()
 
